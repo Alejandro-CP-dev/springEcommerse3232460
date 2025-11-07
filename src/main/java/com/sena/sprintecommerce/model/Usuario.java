@@ -1,5 +1,6 @@
 package com.sena.sprintecommerce.model;
 
+
 import java.util.List;
 
 import jakarta.persistence.Entity;
