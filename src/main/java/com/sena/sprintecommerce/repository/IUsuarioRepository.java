@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import com.sena.sprintecommerce.model.Usuario;
 
 @Repository
-public interface IUsusarioRepository extends JpaRepository<Usuario, Integer> {
+public interface IUsuarioRepository extends JpaRepository<Usuario, Integer> {
 	
 	Optional<Usuario> findByEmail(String email);
 	
