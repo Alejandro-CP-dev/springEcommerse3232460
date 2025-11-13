@@ -28,7 +28,7 @@ public class ProductoServiceImplement implements IProductoService {
 	}
 
 	@Override
-	public void uptade(Producto producto) {
+	public void update(Producto producto) {
 		// TODO Auto-generated method stub
 		productorepository.save(producto);
 	}

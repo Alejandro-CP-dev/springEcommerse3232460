@@ -71,7 +71,7 @@ public class APIProductoController {
 		if (productDetails.getImagen() != null) {
 			existingProduct.setImagen(productDetails.getImagen());
 		}
-		productoService.uptade(existingProduct);
+		productoService.update(existingProduct);
 		return ResponseEntity.ok(existingProduct);
 	}
 

@@ -1,6 +1,5 @@
 package com.sena.sprintecommerce.controller;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -8,12 +7,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.sena.sprintecommerce.model.DetalleOrden;
 import com.sena.sprintecommerce.model.Orden;
@@ -40,90 +34,77 @@ public class APIOrdenesController {
 	@Autowired
 	private IProductoService productoService;
 
-	// Lista temporal de DetallesOrden
-	private List<DetalleOrden> detalleTemp = new ArrayList<>();
-
-	// Variable Temporal para la Orden
-	private Orden ordenTemp = new Orden();
-
-	// Endpoint GET para obtener todas los Ordenes
+	// GET: todas las órdenes
 	@GetMapping("/list")
-	public List<Orden> getALLOrdenes() {
+	public List<Orden> getAllOrdenes() {
 		return ordenService.findAll();
 	}
 
-	// Endpoint GET para obtener un Orden por ID
+	// GET: orden por ID
 	@GetMapping("/orden/{id}")
 	public ResponseEntity<Orden> getOrdenById(@PathVariable Integer id) {
 		Optional<Orden> orden = ordenService.findById(id);
 		return orden.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
 	}
-	
-	// Endpoint GET para mostrar el detalle orden temporal
-		@GetMapping("/temporden")
-		public ResponseEntity<List<DetalleOrden>> verOrdenTemp() {
-			return ResponseEntity.ok(detalleTemp);
-		}
-	
-	// Endpoint POST para agregar productos temporales
-		@PostMapping("/agregar")
-		public ResponseEntity<List<DetalleOrden>> addProduct(@RequestBody DetalleOrden detalle) {
-			var producto = productoService.get(detalle.getProducto().getId())
-					.orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-			// verificar si ya esta existiendo
-			boolean existe = false;
-			for (DetalleOrden d : detalleTemp) {
-				if (d.getProducto().getId().equals(producto.getId())) {
-					d.setCantidad(d.getCantidad() + detalle.getCantidad()); // Si ya existe, solo aumenta la cantidad
-					d.setTotal(d.getCantidad() * d.getPrecio()); // multiplica la cantidad por el precio
-					existe = true;
-					break;
-				}
-			}
-
-			if (!existe) {
-				detalle.setProducto(producto);
-				detalle.setPrecio(producto.getPrecio());
-				detalle.setTotal(producto.getPrecio() * detalle.getCantidad());
-				detalleTemp.add(detalle);
-			}
-
-			// Actualizar el total
-			double total = detalleTemp.stream().mapToDouble(DetalleOrden::getTotal).sum();
-			ordenTemp.setTotal(total);
-			return ResponseEntity.ok(detalleTemp);
-		}
-
-	// Endpoint POST para crear un nuevo producto
+	// POST: crear nueva orden con lista de detalles
 	@PostMapping("/create")
-	public ResponseEntity<Orden> createOrden(@RequestBody Orden orden) {
-		// Buscar el usuario
-		Usuario u = usuarioService.findById(1).get();
-		orden.setUsuario(u);
-		
-		orden.setTotal(0.0);
-		orden.setNumero(ordenService.generarNumeroOrden());
-		orden.setFechacreacion(new Date());
+	public ResponseEntity<?> createOrden(@RequestBody List<DetalleOrden> detalles, @RequestParam Integer usuarioId) {
+		try {
 
-		Orden savedOrden = ordenService.save(orden);
+			if (detalles == null || detalles.isEmpty()) {
+				return ResponseEntity.badRequest().body("La lista de productos no puede estar vacía");
+			}
 
-		// Guardar cada detalle y asociarlo a la orden
-		for (DetalleOrden d : detalleTemp) {
-			d.setOrden(savedOrden);
-			detalleService.save(d);
+			Usuario usuario = usuarioService.findById(usuarioId)
+					.orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-			// Descontar stock de Producto
-			Producto producto = d.getProducto();
-			producto.setCantidad((int) (producto.getCantidad() - d.getCantidad()));
-			productoService.uptade(producto);
+			// Crear orden VACÍA y guardarla primero
+			Orden orden = new Orden();
+			orden.setUsuario(usuario);
+			orden.setNumero(ordenService.generarNumeroOrden());
+			orden.setFechacreacion(new Date());
+			orden.setTotal(0.0); // temporal
+
+			Orden savedOrden = ordenService.save(orden); // YA TIENE ID
+
+			double totalOrden = 0;
+
+			//  Guardar detalles uno por uno con la ORDEN ya persistida
+			for (DetalleOrden d : detalles) {
+
+				Producto producto = productoService.get(d.getProducto().getId())
+						.orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+
+				if (producto.getCantidad() < d.getCantidad()) {
+					return ResponseEntity.badRequest()
+							.body("Stock insuficiente para el producto: " + producto.getNombre());
+				}
+
+				d.setOrden(savedOrden);
+				d.setProducto(producto);
+				d.setPrecio(producto.getPrecio());
+				d.setTotal(producto.getPrecio() * d.getCantidad());
+
+				// actualizar stock
+				producto.setCantidad((int) (producto.getCantidad() - d.getCantidad()));
+				productoService.update(producto);
+
+				detalleService.save(d);
+
+				totalOrden += d.getTotal();
+			}
+
+			// actualizar total de la orden ya guardada
+			savedOrden.setTotal(totalOrden);
+			ordenService.save(savedOrden);
+
+			return ResponseEntity.status(HttpStatus.CREATED).body(savedOrden);
+
+		} catch (Exception e) {
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body("Error al crear la orden: " + e.getMessage());
 		}
-
-		// Limpiar listas Temporales
-		detalleTemp.clear();
-		ordenTemp = new Orden();
-
-		return ResponseEntity.status(HttpStatus.CREATED).body(savedOrden);
 	}
 
 }

@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,7 +27,7 @@ public class Orden {
 	@ManyToOne
 	private Usuario usuario;
 
-	@OneToMany(mappedBy = "orden")
+	@OneToMany(mappedBy = "orden", cascade = CascadeType.ALL, orphanRemoval = true)
 	@JsonIgnore
 	private List<DetalleOrden> ordenes;
 
@@ -82,7 +83,6 @@ public class Orden {
 		this.usuario = usuario;
 	}
 
-	
 	public List<DetalleOrden> getOrdenes() {
 		return ordenes;
 	}

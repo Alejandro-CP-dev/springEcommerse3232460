@@ -48,15 +48,18 @@ public class OrdenServiceImplement implements IOrdenService {
 		String numeroConcatenado = "";
 		List<Orden> ordenes = findAll();
 		List<Integer> numeros = new ArrayList<>();
+
 		// Funciones de java 8
-		// Variable anonima
-		ordenes.stream().forEach(o -> numeros.add(Integer.parseInt(o.getNumero())));
-		// Validacion
-		if (ordenes.isEmpty()) {
+
+		// Recorremos solo las órdenes que tengan número válido
+		ordenes.stream().filter(o -> o.getNumero() != null && !o.getNumero().isEmpty())
+				.forEach(o -> numeros.add(Integer.parseInt(o.getNumero())));
+
+		// Validación si no hay órdenes válidas
+		if (numeros.isEmpty()) {
 			numero = 1;
 		} else {
-			numero = numeros.stream().max(Integer::compare).get();
-			numero++;
+			numero = numeros.stream().max(Integer::compare).get() + 1;
 		}
 		// numero de ordenes
 		if (numero < 10) {
