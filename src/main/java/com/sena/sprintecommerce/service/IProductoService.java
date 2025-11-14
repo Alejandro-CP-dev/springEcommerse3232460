@@ -16,4 +16,6 @@ public interface IProductoService {
 	public void delete(Integer id);
 
 	public List<Producto> findAll();
+	
+	public Optional<Producto> getByNombre(String nombre);
 }

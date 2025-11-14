@@ -70,29 +70,43 @@ public class APIOrdenesController {
 
 			double totalOrden = 0;
 
-			//  Guardar detalles uno por uno con la ORDEN ya persistida
-			for (DetalleOrden d : detalles) {
+			// Guardar detalles uno por uno con la ORDEN ya persistida
+			for (DetalleOrden detalle : detalles) {
 
-				Producto producto = productoService.get(d.getProducto().getId())
-						.orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+				Producto producto = null;
 
-				if (producto.getCantidad() < d.getCantidad()) {
+				// BUSCAR POR ID
+				if (detalle.getProducto().getId() != null) {
+					producto = productoService.get(detalle.getProducto().getId())
+							.orElseThrow(() -> new RuntimeException("Producto no encontrado por ID"));
+				}
+				// BUSCAR POR NOMBRE
+				else if (detalle.getProducto().getNombre() != null) {
+					producto = productoService.getByNombre(detalle.getProducto().getNombre())
+							.orElseThrow(() -> new RuntimeException("Producto no encontrado por nombre"));
+				} else {
+					return ResponseEntity.badRequest().body("Debes enviar el id o el nombre del producto");
+				}
+
+				// Validar stock
+				if (producto.getCantidad() < detalle.getCantidad()) {
 					return ResponseEntity.badRequest()
 							.body("Stock insuficiente para el producto: " + producto.getNombre());
 				}
 
-				d.setOrden(savedOrden);
-				d.setProducto(producto);
-				d.setPrecio(producto.getPrecio());
-				d.setTotal(producto.getPrecio() * d.getCantidad());
+				detalle.setOrden(savedOrden);
+				detalle.setProducto(producto);
+				detalle.setPrecio(producto.getPrecio());
+				detalle.setTotal(producto.getPrecio() * detalle.getCantidad());
+				detalle.setNombre(producto.getNombre());
+
+				detalleService.save(detalle);
 
 				// actualizar stock
-				producto.setCantidad((int) (producto.getCantidad() - d.getCantidad()));
+				producto.setCantidad((int) (producto.getCantidad() - detalle.getCantidad()));
 				productoService.update(producto);
 
-				detalleService.save(d);
-
-				totalOrden += d.getTotal();
+				totalOrden += detalle.getTotal();
 			}
 
 			// actualizar total de la orden ya guardada

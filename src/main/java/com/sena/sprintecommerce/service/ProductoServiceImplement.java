@@ -45,4 +45,10 @@ public class ProductoServiceImplement implements IProductoService {
 		return productorepository.findAll();
 	}
 
+	@Override
+	public Optional<Producto> getByNombre(String nombre) {
+		// TODO Auto-generated method stub
+		return productorepository.findByNombre(nombre);
+	}
+
 }
